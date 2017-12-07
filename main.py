@@ -14,7 +14,8 @@ def main():
     :return:
     """
     rs = rss.RssCrawler()
-    rs.generate_rss_item('http://www.ruanyifeng.com/blog')
+    rs.generate_rss('http://www.ruanyifeng.com/blog')
+    rs.write_xml()
 
 
 if __name__ == '__main__':
