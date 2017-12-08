@@ -1,6 +1,7 @@
 # coding: utf8
 
 import datetime
+import time
 
 import PyRSS2Gen
 import requests
@@ -31,10 +32,18 @@ class RssCollection(object):
             'user-agent': const.USER_AGENT,
             'referer': const.REFER_URL
         }
-        r = requests.get(url, headers=headers)
-        if r.encoding != 'utf8':
-            r.encoding = 'utf8'
-        return r.text
+        resp = None
+        try:
+            r = requests.get(url, headers=headers)
+            if r.status_code == 200:
+                r.encoding = 'utf8'
+                resp = r.text
+        except requests.RequestException as e:
+            print(e)
+        finally:
+            time.sleep(3)
+
+        return resp
 
     def generate_rss_item(self, url):
         """
@@ -43,6 +52,9 @@ class RssCollection(object):
         """
         print('fetch: %s' % url)
         html = self.request_html(url)
+        if not html:
+            self.url = None
+            return None
         soup = BeautifulSoup(html, 'html.parser')
         title = soup.find('title').text
         div = soup.find('div', {'class': 'entry-location'})
@@ -65,12 +77,15 @@ class RssCollection(object):
         :return:
         """
         html = self.request_html(self.url)
+        if not html:
+            return
         soup = BeautifulSoup(html, 'html.parser')
         self.url = soup.find('div', {'id': 'entry-1967'}).find('a')['href']
         soup.decompose()
         while self.url:
             rss_item = self.generate_rss_item(self.url)
-            self.rss.items.append(rss_item)
+            if rss_item:
+                self.rss.items.append(rss_item)
 
     def write_xml(self):
         """
