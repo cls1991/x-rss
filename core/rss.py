@@ -9,7 +9,8 @@ from bs4 import BeautifulSoup
 from share import const
 
 
-class RssCrawler(object):
+class RssCollection(object):
+    url = 'http://www.ruanyifeng.com/blog'
 
     def __init__(self):
         self.rss = PyRSS2Gen.RSS2(
@@ -26,7 +27,11 @@ class RssCrawler(object):
         :param url:
         :return:
         """
-        r = requests.get(url, headers={'User-Agent': const.USER_AGENT})
+        headers = {
+            'user-agent': const.USER_AGENT,
+            'referer': const.REFER_URL
+        }
+        r = requests.get(url, headers=headers)
         if r.encoding != 'utf8':
             r.encoding = 'utf8'
         return r.text
@@ -36,9 +41,16 @@ class RssCrawler(object):
         :param url:
         :return:
         """
+        print('fetch: %s' % url)
         html = self.request_html(url)
         soup = BeautifulSoup(html, 'html.parser')
         title = soup.find('title').text
+        div = soup.find('div', {'class': 'entry-location'})
+        if not div:
+            soup.decompose()
+            self.url = None
+            return None
+        self.url = div.find('a')['href']
         soup.decompose()
         rss_item = PyRSS2Gen.RSSItem(
             title=title,
@@ -48,17 +60,17 @@ class RssCrawler(object):
         )
         return rss_item
 
-    def generate_rss(self, url):
+    def generate_rss(self):
         """
-        :param url:
         :return:
         """
-        html = self.request_html(url)
+        html = self.request_html(self.url)
         soup = BeautifulSoup(html, 'html.parser')
-        latest_page_url = soup.find('div', {'id': 'entry-1967'}).find('a')['href']
-        # @TODO: traversal all pages
-        rss_item = self.generate_rss_item(latest_page_url)
-        self.rss.items.append(rss_item)
+        self.url = soup.find('div', {'id': 'entry-1967'}).find('a')['href']
+        soup.decompose()
+        while self.url:
+            rss_item = self.generate_rss_item(self.url)
+            self.rss.items.append(rss_item)
 
     def write_xml(self):
         """
